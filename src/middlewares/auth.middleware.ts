@@ -3,29 +3,34 @@ import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-export interface AuthRequest extends Request {
-  userId?: string;
+interface JwtPayload {
+  id: string;
 }
 
-export const authenticate = (req: AuthRequest, res: Response, next: NextFunction) => {
-  if (!JWT_SECRET) {
-    console.error("JWT_SECRET is not defined");
-    return res.status(500).json({ message: "Internal server error" });
+declare global {
+  namespace Express {
+    interface Request {
+      agencyId?: string;
+    }
   }
+}
 
+export const protect = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
+
   if (!authHeader?.startsWith("Bearer ")) {
-    return res.status(401).json({ message: "Unauthorized: Missing token" });
+    return res.status(401).json({ message: "Not authorized, no token" });
   }
 
   const token = authHeader.split(" ")[1];
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
-    req.userId = decoded.id;
+    if (!JWT_SECRET) throw new Error("Missing JWT secret");
+    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+
+    req.agencyId = decoded.id; // ✅ safer than modifying req.body
     next();
-  } catch (error) {
-    console.error("JWT verification error:", error);
-    return res.status(401).json({ message: "Unauthorized: Invalid token" });
+  } catch (err) {
+    return res.status(401).json({ message: "Not authorized, token failed" });
   }
 };

@@ -1,8 +1,9 @@
 import express from "express";
 import { addHouse } from "../controllers/house.controller";
 import { upload } from "../middlewares/image.upload";
+import { protect } from "../middlewares/auth.middleware"; 
 
 const router = express.Router();
-router.post("/", upload.array("images", 10), addHouse);
+router.post("/", protect, upload.array("images", 10), addHouse);
 
 export default router;

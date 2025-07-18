@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
 import House from "../models/House";
+import { AuthRequest } from "../types/express";
 
-export const addHouse = async (req: Request, res: Response) => {
+export const addHouse = async (req: AuthRequest, res: Response) => {
   try {
     const {
       type,
-      agencyId,
       location,
       superficie,
       nombreChambre,
@@ -22,7 +22,10 @@ export const addHouse = async (req: Request, res: Response) => {
       description,
     } = req.body;
     const images = (req.files as Express.Multer.File[] | undefined)?.map((file) => file.path) || [];
-
+    const agencyId = req.agencyId;
+    if (!agencyId) {
+      return res.status(401).json({ message: "Unauthorized: Missing agency ID" });
+    }
     const newHouse = new House({
       type,
       agencyId,
@@ -47,6 +50,7 @@ export const addHouse = async (req: Request, res: Response) => {
     });
 
     await newHouse.save();
+
     res.status(201).json({ message: "House added successfully", house: newHouse });
   } catch (error) {
     console.error("Error adding house:", error);
