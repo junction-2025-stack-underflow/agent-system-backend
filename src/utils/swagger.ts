@@ -9,8 +9,9 @@ dotenv.config();
 const swaggerDefinition = {
   openapi: "3.0.0",
   info: {
-    title: "Orental API",
+    title: "Houseek API",
     version: "1.0.0",
+    description: "API documentation for Houseek Backend",
   },
 };
 
@@ -22,23 +23,26 @@ const options = {
 const swaggerSpec = swaggerJSDoc(options);
 
 export function setupSwagger(app: Express) {
-  // Apply basic authentication in production only
-  if (process.env.NODE_ENV === "production" && process.env.SWAGGER_PASSWORD) {
+  const isProduction = process.env.NODE_ENV === "production";
+  const hasPassword = !!process.env.SWAGGER_PASSWORD;
+
+  if (isProduction && hasPassword) {
     app.use(
       "/docs",
       basicAuth({
-        users: { admin: process.env.SWAGGER_PASSWORD },
+        users: { admin: process.env.SWAGGER_PASSWORD! },
         challenge: true,
         realm: "Swagger UI",
-      })
+      }),
+      swaggerUi.serve,
+      swaggerUi.setup(swaggerSpec)
     );
+  } else {
+    app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
   }
 
-  // Swagger Page
-  app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
   // Swagger JSON
-  app.get("/docs.json", (req, res) => {
+  app.get("/docs.json", (_, res) => {
     res.setHeader("Content-Type", "application/json");
     res.send(swaggerSpec);
   });
