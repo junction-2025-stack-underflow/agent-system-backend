@@ -79,3 +79,40 @@ export const deleteHouse = async (req: AuthRequest, res: Response) => {
       res.status(500).json({ message: "Internal server error" });
     }
   };
+  export const getHousesByAgency = async (req: AuthRequest, res: Response) => {
+    try {
+      const agencyId = req.agencyId;
+  
+      if (!agencyId) {
+        return res.status(401).json({ message: "Unauthorized: Missing agency ID" });
+      }
+  
+      const houses = await House.find({ agencyId });
+  
+      res.status(200).json({ houses });
+    } catch (error) {
+      console.error("Error fetching houses by agency:", error);
+      res.status(500).json({ message: "Failed to fetch houses", error });
+    }
+  };
+  export const getHouseById = async (req: AuthRequest, res: Response) => {
+    try {
+      const agencyId = req.agencyId;
+      const houseId = req.params.id;
+  
+      const house = await House.findById(houseId);
+  
+      if (!house) {
+        return res.status(404).json({ message: "House not found" });
+      }
+  
+      if (house.agencyId.toString() !== agencyId) {
+        return res.status(403).json({ message: "Unauthorized access to this house" });
+      }
+  
+      res.status(200).json({ house });
+    } catch (error) {
+      console.error("Error retrieving house:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  };
