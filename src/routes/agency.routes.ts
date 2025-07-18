@@ -1,9 +1,9 @@
 import express from 'express';
-import { addAgency } from '../controllers/agency.controller';
-import { loginAgency } from '../controllers/agency.controller';
+import { addAgency, confirmAgencyEmail, loginAgency } from '../controllers/agency.controller';
 const router = express.Router();
 
 router.post('/', addAgency);
 router.post("/login", loginAgency);
+router.post("/confirm-email", confirmAgencyEmail)
 
 export default router;

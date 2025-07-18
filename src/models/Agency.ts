@@ -20,12 +20,14 @@ const agencySchema = new mongoose.Schema(
     phone: {
       type: String,
       required: true,
+      unique: true,
     },
     address: {
       wilaya: { type: String, required: true },
       commune: { type: String, required: true },
       street: { type: String },
     },
+    isEmailConfirmed: { type: Boolean, default: false },
   },
   {
     timestamps: true,
