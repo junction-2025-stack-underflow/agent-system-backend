@@ -20,6 +20,8 @@ export const addHouse = async (req: AuthRequest, res: Response) => {
       chauffage,
       titre,
       description,
+      price,
+      region
     } = req.body;
     const images = (req.files as Express.Multer.File[] | undefined)?.map((file) => file.path) || [];
     const agencyId = req.agencyId;
@@ -47,6 +49,8 @@ export const addHouse = async (req: AuthRequest, res: Response) => {
       images,
       titre,
       description,
+      price,
+      region
     });
 
     await newHouse.save();

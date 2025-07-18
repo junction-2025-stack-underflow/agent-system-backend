@@ -9,29 +9,31 @@ export type HouseType =
   | "studio"
   | "duplex";
 
-interface IHouse extends Document {
-  type: HouseType;
-  agencyId: mongoose.Types.ObjectId;
-  location: {
-    latitude: number;
-    longitude: number;
-  };
-  superficie: number;
-  nombreChambre: number;
-  nombreLits: number;
-  nombreSallesDeBain: number;
-  nombreCuisine: number;
-  wifi: boolean;
-  television: boolean;
-  laveLinge: boolean;
-  parking: boolean;
-  climatisation: boolean;
-  chauffage: boolean;
-  images: string[];
-  titre: string;
-  description: string;
-}
-
+  interface IHouse extends Document {
+    type: HouseType;
+    agencyId: mongoose.Types.ObjectId;
+    location: {
+      latitude: number;
+      longitude: number;
+    };
+    superficie: number;
+    nombreChambre: number;
+    nombreLits: number;
+    nombreSallesDeBain: number;
+    nombreCuisine: number;
+    wifi: boolean;
+    television: boolean;
+    laveLinge: boolean;
+    parking: boolean;
+    climatisation: boolean;
+    chauffage: boolean;
+    images: string[];
+    titre: string;
+    description: string;
+    region: string; 
+    price: number;  
+  }
+  
 const houseSchema = new Schema<IHouse>(
   {
     type: {
@@ -62,6 +64,8 @@ const houseSchema = new Schema<IHouse>(
     images: { type: [String], default: [] },
     titre: { type: String, required: true },
     description: { type: String, required: true },
+    region: { type: String, required: true },
+    price: { type: Number, required: true }, 
   },
   { timestamps: true }
 );
