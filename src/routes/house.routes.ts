@@ -6,14 +6,14 @@ import {
   getHouseById,
 } from "../controllers/house.controller";
 import { upload } from "../middlewares/image.upload";
-import { protect } from "../middlewares/auth.middleware"; 
+import { authenticateAgency } from "../middlewares/auth.middleware"; 
 import { recommendClientsForHouse } from "../controllers/recommendation.controller";
 const router = express.Router();
-router.post("/", protect, upload.array("images", 10), addHouse);
-router.delete("/:id", protect, deleteHouse);
-router.get("/myhouses", protect, getHousesByAgency);
-router.get("/myhouse/:id", protect, getHouseById); 
-router.get("/:id/recommendations", protect, recommendClientsForHouse);
+router.post("/", authenticateAgency, upload.array("images", 10), addHouse);
+router.delete("/:id", authenticateAgency, deleteHouse);
+router.get("/myhouses", authenticateAgency, getHousesByAgency);
+router.get("/myhouse/:id", authenticateAgency, getHouseById); 
+router.get("/:id/recommendations", authenticateAgency, recommendClientsForHouse);
 
 
 export default router;

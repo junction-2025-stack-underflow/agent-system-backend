@@ -8,6 +8,7 @@ import { setupSwagger } from "./utils/swagger";
 import { rateLimiter } from "./middlewares/rate-limiter.middleware";
 import { appRouter } from "./routes";
 import { connectDB } from "./config/db";
+import compression from "compression";
 import path = require("path");
 dotenv.config({ path: `.env.${process.env.NODE_ENV}` });
 const app = express();
@@ -19,8 +20,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(rateLimiter());
 app.use(morganMiddleware);
 app.use(i18n);
-
-app.use('/uploads', express.static(path.join(__dirname, '../Uploads')));
+app.use(compression());
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // Setup Swagger for API documentation
 setupSwagger(app);
 
@@ -34,7 +35,7 @@ const startServer = async () => {
     await connectDB();
     const server = app.listen(PORT, () => {
       console.log(`
-        ${chalk.green("Orental API is running 🚀")}
+        ${chalk.green("houseek API is running 🚀")}
         - Local:        ${chalk.blue(`http://localhost:${PORT}`)}
         - Environment:  ${chalk.blue(process.env.NODE_ENV || "development")}
         - Docs:         ${chalk.blue(`http://localhost:${PORT}/docs`)}
