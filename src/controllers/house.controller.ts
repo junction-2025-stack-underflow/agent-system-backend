@@ -57,3 +57,25 @@ export const addHouse = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ message: "Failed to add house", error });
   }
 };
+export const deleteHouse = async (req: AuthRequest, res: Response) => {
+    try {
+      const agencyId = req.agencyId;
+      const houseId = req.params.id;
+  
+      const house = await House.findById(houseId);
+  
+      if (!house) {
+        return res.status(404).json({ message: "House not found" });
+      }
+  
+      if (house.agencyId.toString() !== agencyId) {
+        return res.status(403).json({ message: "Unauthorized to delete this house" });
+      }
+  
+      await House.findByIdAndDelete(houseId);
+      res.status(200).json({ message: "House deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting house:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  };
