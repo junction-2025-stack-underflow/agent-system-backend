@@ -4,87 +4,24 @@ import House from "../models/House";
 import { AuthRequest } from "../types/express";
 import redisClient from "../utils/redis.client";
 import fs from "fs/promises";
-import rateLimit from "express-rate-limit";
-import RedisStore from "rate-limit-redis";
-import { logError } from "../utils/logger"; 
-const CACHE_TTL: number = parseInt(process.env.CACHE_TTL || "3600", 10);
-const houseRateLimiter = rateLimit({
-  store: new RedisStore({
-    sendCommand: async (...args: string[]) => redisClient.sendCommand(args),
-  }),
-  windowMs: 15 * 60 * 1000, 
-  max: 100, 
-  keyGenerator: (req: AuthRequest) => req.agencyId!, 
-  message: "Too many requests. Please try again later.",
-});
-const requireAgency = (req: AuthRequest, res: Response, next: NextFunction): void => {
-  if (!req.agencyId) {
-    res.status(401).json({ success: false, message: "Unauthorized: Missing agency ID" });
-    return;
-  }
-  next();
-};
-const cacheOrQuery = async <T>(
-  cacheKey: string,
-  query: () => Promise<T>,
-  ttl: number
-): Promise<{ data: T; cached: boolean }> => {
-  try {
-    const cached = await redisClient.get(cacheKey);
-    if (cached) {
-      return { data: JSON.parse(cached), cached: true };
-    }
-    const data = await query();
-    await redisClient.setEx(cacheKey, ttl, JSON.stringify(data));
-    return { data, cached: false };
-  } catch (err) {
-    logError("Redis error", { error: err, cacheKey }); 
-    const data = await query();
-    return { data, cached: false };
-  }
-};
-
+import { logError } from "../utils/logger";
+import { cacheOrQuery, CACHE_TTL } from "../utils/cache";
+import { houseRateLimiter, requireAgency } from "../utils/rate-limiter";
 
 export const addHouse = [
-  body("type").isString().notEmpty().withMessage("Type is required"),
-  body("location.latitude").isFloat().withMessage("Invalid latitude"),
-  body("location.longitude").isFloat().withMessage("Invalid longitude"),
-  body("superficie").isFloat({ min: 0 }).withMessage("Invalid surface area"),
-  body("nombreChambre").isInt({ min: 0 }).withMessage("Invalid number of bedrooms"),
   body("nombreLits").isInt({ min: 0 }).withMessage("Invalid number of beds"),
-  body("nombreSallesDeBain")
-    .isInt({ min: 0 })
-    .withMessage("Invalid number of bathrooms"),
+  body("nombreSallesDeBain").isInt({ min: 0 }).withMessage("Invalid number of bathrooms"),
   body("nombreCuisine").isInt({ min: 0 }).withMessage("Invalid number of kitchens"),
-  body("price").isFloat({ min: 0 }).withMessage("Invalid price"),
   body("titre").isString().notEmpty().withMessage("Title is required"),
   body("description").isString().notEmpty().withMessage("Description is required"),
   body("region").isString().notEmpty().withMessage("Region is required"),
   houseRateLimiter,
   requireAgency,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: AuthRequest, res: Response): Promise<void | Response> => {
     try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        if (req.files) {
-          const files = req.files as Express.Multer.File[];
-          await Promise.all(
-            files.map((file) =>
-              fs.unlink(file.path).catch((err) =>
-                logError("Failed to delete file", { error: err, path: file.path }) 
-              )
-            )
-          );
-        }
-        res.status(400).json({ success: false, errors: errors.array() });
-        return;
-      }
-
+      const validationErrors = validationResult(req);
       const {
-        type,
-        location,
-        superficie,
-        nombreChambre,
+        details,
         nombreLits,
         nombreSallesDeBain,
         nombreCuisine,
@@ -96,23 +33,57 @@ export const addHouse = [
         chauffage,
         titre,
         description,
-        price,
         region,
       } = req.body;
-
+      const parsedDetails = typeof details === "string" ? JSON.parse(details) : details;
+      const customErrors: any[] = [];
+      if (!["House", "Villa", "Apartment"].includes(parsedDetails.PropertyType)) {
+        customErrors.push({ msg: "Property type must be House, Villa, or Apartment", path: "details.PropertyType" });
+      }
+      if (isNaN(parseFloat(parsedDetails.Latitude))) {
+        customErrors.push({ msg: "Invalid latitude", path: "details.Latitude" });
+      }
+      if (isNaN(parseFloat(parsedDetails.Longitude))) {
+        customErrors.push({ msg: "Invalid longitude", path: "details.Longitude" });
+      }
+      if (isNaN(parseFloat(parsedDetails.Area)) || parsedDetails.Area < 0) {
+        customErrors.push({ msg: "Invalid area", path: "details.Area" });
+      }
+      if (isNaN(parseInt(parsedDetails.Rooms)) || parsedDetails.Rooms < 0) {
+        customErrors.push({ msg: "Invalid number of rooms", path: "details.Rooms" });
+      }
+      if (isNaN(parseFloat(parsedDetails.Price)) || parsedDetails.Price < 0) {
+        customErrors.push({ msg: "Invalid price", path: "details.Price" });
+      }
+      if (!validationErrors.isEmpty() || customErrors.length > 0) {
+        if (req.files) {
+          const files = req.files as Express.Multer.File[];
+          await Promise.all(
+            files.map((file) =>
+              fs.unlink(file.path).catch((err) =>
+                logError("Failed to delete file", { error: err, path: file.path })
+              )
+            )
+          );
+        }
+        return res.status(400).json({
+          success: false,
+          errors: [...validationErrors.array(), ...customErrors],
+        });
+      }
       const images: string[] = (req.files as Express.Multer.File[] | undefined)?.map(
         (file: Express.Multer.File) => file.path
       ) || [];
-
       const newHouse = new House({
-        type,
         agencyId: req.agencyId,
-        location: {
-          latitude: parseFloat(location.latitude as string),
-          longitude: parseFloat(location.longitude as string),
+        details: {
+          PropertyType: parsedDetails.PropertyType,
+          Price: parseFloat(parsedDetails.Price),
+          Area: parseFloat(parsedDetails.Area),
+          Rooms: parseInt(parsedDetails.Rooms, 10),
+          Latitude: parseFloat(parsedDetails.Latitude),
+          Longitude: parseFloat(parsedDetails.Longitude),
         },
-        superficie: parseFloat(superficie as string),
-        nombreChambre: parseInt(nombreChambre as string, 10),
         nombreLits: parseInt(nombreLits as string, 10),
         nombreSallesDeBain: parseInt(nombreSallesDeBain as string, 10),
         nombreCuisine: parseInt(nombreCuisine as string, 10),
@@ -125,12 +96,9 @@ export const addHouse = [
         images,
         titre,
         description,
-        price: parseFloat(price as string),
         region,
       });
-
       await newHouse.save();
-
       const cacheKeyList = `houses:${req.agencyId}`;
       const cachedHouses = await redisClient.get(cacheKeyList);
       if (cachedHouses) {
@@ -141,7 +109,7 @@ export const addHouse = [
         await redisClient.del(cacheKeyList);
       }
 
-      const cacheKeyHouse = `house:${req.agencyId}:${newHouse._id}`;
+      const cacheKeyHouse = `house:${req.agencyId}:${newHouse.details.ID}`;
       await redisClient.setEx(cacheKeyHouse, CACHE_TTL, JSON.stringify(newHouse));
 
       res.status(201).json({
@@ -155,13 +123,13 @@ export const addHouse = [
         await Promise.all(
           files.map((file) =>
             fs.unlink(file.path).catch((err) =>
-              logError("Failed to delete file", { error: err, path: file.path }) 
+              logError("Failed to delete file", { error: err, path: file.path })
             )
           )
         );
       }
 
-      logError("Error adding house", { error, agencyId: req.agencyId }); 
+      logError("Error adding house", { error, agencyId: req.agencyId });
       if (error.name === "ValidationError") {
         res.status(400).json({
           success: false,
@@ -179,44 +147,45 @@ export const addHouse = [
   },
 ];
 
-
 export const deleteHouse = [
-  houseRateLimiter,
-  requireAgency,
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    try {
-      const { id: houseId } = req.params;
-
-      const house = await House.findById(houseId).lean();
-      if (!house) {
-        res.status(404).json({ success: false, message: "House not found" });
-        return;
+    houseRateLimiter,
+    requireAgency,
+    async (req: AuthRequest, res: Response): Promise<void> => {
+      try {
+        const houseId = req.params.id;
+  
+        const house = await House.findById(houseId).lean();
+        if (!house) {
+          res.status(404).json({ success: false, message: "House not found" });
+          return;
+        }
+  
+        if (house.agencyId.toString() !== req.agencyId) {
+          res.status(403).json({ success: false, message: "Unauthorized to delete this house" });
+          return;
+        }
+  
+        await House.deleteOne({ _id: houseId });
+  
+        const cacheKeyList = `houses:${req.agencyId}`;
+        const cachedHouses = await redisClient.get(cacheKeyList);
+        if (cachedHouses) {
+          const houses = JSON.parse(cachedHouses).filter((h: any) => h._id !== houseId);
+          await redisClient.setEx(cacheKeyList, CACHE_TTL, JSON.stringify(houses));
+        } else {
+          await redisClient.del(cacheKeyList);
+        }
+  
+        await redisClient.del(`house:${req.agencyId}:${houseId}`);
+  
+        res.status(200).json({ success: true, message: "House deleted successfully" });
+      } catch (error: any) {
+        logError("Error deleting house", { error, agencyId: req.agencyId, houseId: req.params.id });
+        res.status(500).json({ success: false, message: "Internal server error" });
       }
-      if (house.agencyId.toString() !== req.agencyId) {
-        res.status(403).json({ success: false, message: "Unauthorized to delete this house" });
-        return;
-      }
-
-      await House.findByIdAndDelete(houseId);
-
-      const cacheKeyList = `houses:${req.agencyId}`;
-      const cachedHouses = await redisClient.get(cacheKeyList);
-      if (cachedHouses) {
-        const houses = JSON.parse(cachedHouses).filter((h: any) => h._id !== houseId);
-        await redisClient.setEx(cacheKeyList, CACHE_TTL, JSON.stringify(houses));
-      } else {
-        await redisClient.del(cacheKeyList);
-      }
-      await redisClient.del(`house:${req.agencyId}:${houseId}`);
-
-      res.status(200).json({ success: true, message: "House deleted successfully" });
-    } catch (error: any) {
-      logError("Error deleting house", { error, agencyId: req.agencyId, houseId: req.params.id }); 
-      res.status(500).json({ success: false, message: "Internal server error" });
-    }
-  },
-];
-
+    },
+  ];
+  
 
 export const getHousesByAgency = [
   houseRateLimiter,
@@ -232,7 +201,7 @@ export const getHousesByAgency = [
         cacheKey,
         () =>
           House.find({ agencyId: req.agencyId })
-            .select("type location price titre description images")
+            .select("details.ID details.PropertyType details.Price details.Area details.Rooms details.Latitude details.Longitude titre description images")
             .skip((pageNum - 1) * limitNum)
             .limit(limitNum)
             .lean(),
@@ -241,12 +210,11 @@ export const getHousesByAgency = [
 
       res.status(200).json({ success: true, data: { houses }, cached });
     } catch (error: any) {
-      logError("Error fetching houses by agency", { error, agencyId: req.agencyId }); 
+      logError("Error fetching houses by agency", { error, agencyId: req.agencyId });
       res.status(500).json({ success: false, message: "Failed to fetch houses" });
     }
   },
 ];
-
 
 export const getHouseById = [
   houseRateLimiter,
@@ -259,14 +227,14 @@ export const getHouseById = [
       const { data: house, cached } = await cacheOrQuery(
         cacheKey,
         async () => {
-          const house = await House.findById(houseId)
-            .select("type location price titre description images")
+          const house = await House.findOne({ "details.ID": parseInt(houseId, 10) })
+            .select("details.ID details.PropertyType details.Price details.Area details.Rooms details.Latitude details.Longitude titre description images")
             .lean();
           if (!house) {
             throw new Error("House not found");
           }
           if (house.agencyId.toString() !== req.agencyId) {
-            throw new Error("Unauthorized access to this house");
+            throw new Error(" unauthorized access to this house");
           }
           return house;
         },
@@ -275,7 +243,7 @@ export const getHouseById = [
 
       res.status(200).json({ success: true, data: { house }, cached });
     } catch (error: any) {
-      logError("Error retrieving house", { error, agencyId: req.agencyId, houseId: req.params.id }); 
+      logError("Error retrieving house", { error, agencyId: req.agencyId, houseId: req.params.id });
       if (error.message === "House not found") {
         res.status(404).json({ success: false, message: error.message });
         return;

@@ -2,10 +2,7 @@ import express from "express";
 import helmet from "helmet";
 import dotenv from "dotenv";
 import chalk from "chalk";
-import { morganMiddleware } from "./middlewares/morgan.middleware";
-import { i18n } from "./middlewares/i18n.middleware";
 import { setupSwagger } from "./utils/swagger";
-import { rateLimiter } from "./middlewares/rate-limiter.middleware";
 import { appRouter } from "./routes";
 import { connectDB } from "./config/db";
 import compression from "compression";
@@ -17,9 +14,6 @@ const app = express();
 app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(rateLimiter());
-app.use(morganMiddleware);
-app.use(i18n);
 app.use(compression());
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // Setup Swagger for API documentation
@@ -51,14 +45,12 @@ const startServer = async () => {
       });
     };
 
-    // Handle termination signals
     process.on("SIGINT", shutdown);
     process.on("SIGTERM", shutdown);
   } catch (err) {
     console.error("Failed to connect to the database", err);
-    process.exit(1); // Exit if the DB connection fails
+    process.exit(1); 
   }
 };
 
-// Start the server
 startServer();

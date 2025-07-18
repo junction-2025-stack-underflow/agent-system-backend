@@ -3,64 +3,23 @@ import { body, validationResult } from "express-validator";
 import Client from "../models/Client";
 import { AuthRequest } from "../types/express";
 import redisClient from "../utils/redis.client";
-import rateLimit from "express-rate-limit";
-import RedisStore from "rate-limit-redis";
-import { logError } from "../utils/logger"; 
-const CACHE_TTL: number = parseInt(process.env.CACHE_TTL || "3600", 10);
-const readClientRateLimiter = rateLimit({
-  store: new RedisStore({
-    sendCommand: async (...args: string[]) => redisClient.sendCommand(args),
-  }),
-  windowMs: 15 * 60 * 1000, 
-  max: 500, 
-  keyGenerator: (req: AuthRequest) => req.agencyId!, 
-  message: "Too many requests. Please try again later.",
-});
-const writeClientRateLimiter = rateLimit({
-  store: new RedisStore({
-    sendCommand: async (...args: string[]) => redisClient.sendCommand(args),
-  }),
-  windowMs: 15 * 60 * 1000, 
-  max: 100, 
-  keyGenerator: (req: AuthRequest) => req.agencyId!, 
-  message: "Too many requests. Please try again later.",
-});
-const requireAgency = (req: AuthRequest, res: Response, next: NextFunction): void => {
-  if (!req.agencyId) {
-    res.status(401).json({ success: false, message: "Unauthorized: Missing agency ID" });
-    return;
-  }
-  next();
-};
-const cacheOrQuery = async <T>(
-  cacheKey: string,
-  query: () => Promise<T>,
-  ttl: number
-): Promise<{ data: T; cached: boolean }> => {
-  try {
-    const cached = await redisClient.get(cacheKey);
-    if (cached) {
-      return { data: JSON.parse(cached), cached: true };
-    }
-    const data = await query();
-    await redisClient.setEx(cacheKey, ttl, JSON.stringify(data));
-    return { data, cached: false };
-  } catch (err) {
-    logError("Redis error", { error: err, cacheKey }); 
-    const data = await query();
-    return { data, cached: false };
-  }
-};
+import { logError } from "../utils/logger";
+import { cacheOrQuery, CACHE_TTL } from "../utils/cache";
+import { readClientRateLimiter, writeClientRateLimiter, requireAgency } from "../utils/rate-limiter";
+
 export const addClient = [
   body("fullName").isString().notEmpty().withMessage("Full name is required"),
   body("telephone").isString().notEmpty().withMessage("Telephone is required"),
   body("email").optional().isEmail().withMessage("Invalid email format"),
-  body("budget").isFloat({ min: 0 }).withMessage("Budget must be a positive number"),
-  body("superficie").optional().isFloat({ min: 0 }).withMessage("Invalid surface area"),
-  body("region").optional().isString().withMessage("Region must be a string"),
-  body("besoin").optional().isString().withMessage("Besoin must be a string"),
-  body("nombreChambre").optional().isInt({ min: 0 }).withMessage("Invalid number of bedrooms"),
-  body("status").optional().isString().withMessage("Status must be a string"),
+  body("preferences.minBudget").isFloat({ min: 0 }).withMessage("Minimum budget is required"),
+  body("preferences.maxBudget").isFloat({ min: 0 }).withMessage("Maximum budget is required"),
+  body("preferences.desiredArea").isFloat({ min: 0 }).withMessage("Desired area is required"),
+  body("preferences.propertyType")
+    .isIn(["Apartment", "Villa", "House"])
+    .withMessage("Property type must be Apartment, Villa, or House"),
+  body("preferences.numberOfKids").isInt({ min: 0 }).withMessage("Number of kids is required"),
+  body("preferences.atitude").isFloat().withMessage("Latitude is required"),
+  body("preferences.longitude").isFloat().withMessage("Longitude is required"),
   writeClientRateLimiter,
   requireAgency,
   async (req: AuthRequest, res: Response): Promise<void> => {
@@ -71,29 +30,22 @@ export const addClient = [
         return;
       }
 
-      const {
-        fullName,
-        telephone,
-        email,
-        budget,
-        superficie,
-        region,
-        besoin,
-        nombreChambre,
-        status,
-      } = req.body;
+      const { fullName, telephone, email, preferences } = req.body;
 
       const newClient = new Client({
         fullName,
         telephone,
         email,
-        budget: parseFloat(budget as string),
-        superficie: superficie ? parseFloat(superficie as string) : undefined,
-        region,
-        besoin,
-        nombreChambre: nombreChambre ? parseInt(nombreChambre as string, 10) : undefined,
-        status,
         agencyId: req.agencyId,
+        preferences: {
+          minBudget: parseFloat(preferences.minBudget),
+          maxBudget: parseFloat(preferences.maxBudget),
+          desiredArea: parseFloat(preferences.desiredArea),
+          propertyType: preferences.propertyType,
+          numberOfKids: parseInt(preferences.numberOfKids),
+          atitude: parseFloat(preferences.atitude),
+          longitude: parseFloat(preferences.longitude),
+        },
       });
 
       await newClient.save();
@@ -117,7 +69,7 @@ export const addClient = [
         message: "Client added successfully",
       });
     } catch (error: any) {
-      logError("Error adding client", { error, agencyId: req.agencyId }); 
+      logError("Error adding client", { error, agencyId: req.agencyId });
       if (error.name === "ValidationError") {
         res.status(400).json({
           success: false,
@@ -130,7 +82,6 @@ export const addClient = [
     }
   },
 ];
-
 
 export const deleteClient = [
   writeClientRateLimiter,
@@ -159,12 +110,11 @@ export const deleteClient = [
 
       res.status(200).json({ success: true, message: "Client deleted successfully" });
     } catch (error: any) {
-      logError("Error deleting client", { error, agencyId: req.agencyId, clientId: req.params.id }); 
+      logError("Error deleting client", { error, agencyId: req.agencyId, clientId: req.params.id });
       res.status(500).json({ success: false, message: "Internal server error" });
     }
   },
 ];
-
 
 export const getAllClients = [
   readClientRateLimiter,
@@ -189,43 +139,52 @@ export const getAllClients = [
 
       res.status(200).json({ success: true, data: { clients }, cached });
     } catch (error: any) {
-      logError("Error fetching clients", { error, agencyId: req.agencyId }); 
+      logError("Error fetching clients", { error, agencyId: req.agencyId });
       res.status(500).json({ success: false, message: "Failed to fetch clients" });
     }
   },
 ];
-
 
 export const getClientById = [
   readClientRateLimiter,
   requireAgency,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const { id: clientId } = req.params;
-
-      const cacheKey = `client:${req.agencyId}:${clientId}`;
+      const { id } = req.params;
+      const preferencesId = parseInt(id, 10);
+      if (isNaN(preferencesId)) {
+        res.status(400).json({ success: false, message: "Invalid client ID" });
+        return;
+      }
+      const cacheKey = `client:${req.agencyId}:prefId:${preferencesId}`;
       const { data: client, cached } = await cacheOrQuery(
         cacheKey,
         async () => {
-          const client = await Client.findOne({ _id: clientId, agencyId: req.agencyId })
-            .select("fullName telephone email budget status")
+          const foundClient = await Client.findOne({
+            "preferences.ID": preferencesId,
+            agencyId: req.agencyId,
+          })
+            .select("-__v")
             .lean();
-          if (!client) {
+          if (!foundClient) {
             throw new Error("Client not found or unauthorized");
           }
-          return client;
+          return foundClient;
         },
         CACHE_TTL
       );
-
       res.status(200).json({ success: true, data: { client }, cached });
     } catch (error: any) {
-      logError("Error fetching client", { error, agencyId: req.agencyId, clientId: req.params.id }); 
+      logError("Error fetching client by preferences.ID", {
+        error,
+        agencyId: req.agencyId,
+        preferencesId: req.params.id,
+      });
       if (error.message === "Client not found or unauthorized") {
         res.status(404).json({ success: false, message: error.message });
-        return;
+      } else {
+        res.status(500).json({ success: false, message: "Internal server error" });
       }
-      res.status(500).json({ success: false, message: "Internal server error" });
     }
   },
 ];
