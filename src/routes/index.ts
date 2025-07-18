@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import houseRoutes from "./house.routes";
+import agencyRoutes from "./agency.routes";
 const router = Router();
 
 /**
@@ -57,4 +58,5 @@ router.get("/", (_: Request, res: Response) => {
 //   res.json({ language: req.t("debug:currentLangue") });
 // });
 router.use("/houses", houseRoutes);
+router.use("/agency", agencyRoutes);
 export { router as appRouter };
