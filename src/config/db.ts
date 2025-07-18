@@ -1,24 +1,19 @@
 import mongoose from "mongoose";
 import chalk from "chalk";
 
-const connectDB = async () => {
-  try {
-    const connection = await mongoose.connect(process.env.DATABASE_URL || "");
-    console.log(
-      chalk.green(`MongoDB connected: ${connection.connection.host}`)
-    );
-    return connection;
-  } catch (err: unknown) {
-    if (err instanceof Error) {
-      console.error(
-        chalk.red("Failed to connect to database"),
-        chalk.yellow(err.message)
-      );
-    } else {
-      console.error(chalk.red("Failed to connect to database"));
-    }
+export const connectDB = async () => {
+  const uri = process.env.MONGO_URI as string;
+
+  if (!uri) {
+    console.error(chalk.red("❌ MONGO_URI is not defined in your .env file"));
     process.exit(1);
   }
-};
 
-export { connectDB };
+  try {
+    await mongoose.connect(uri);
+    console.log(chalk.green("✅ Connected to MongoDB Atlas"));
+  } catch (error) {
+    console.error(chalk.red("❌ MongoDB connection error:"), error);
+    throw error;
+  }
+};

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-
+import houseRoutes from "./house.routes";
 const router = Router();
 
 /**
@@ -32,9 +32,9 @@ router.get("/", (_: Request, res: Response) => {
  *                   type: string
  *                   example: healthy
  */
-router.get("/health", (_: Request, res: Response) => {
-  res.json({ status: "healthy" });
-});
+// router.get("/health", (_: Request, res: Response) => {
+//   res.json({ status: "healthy" });
+// });
 
 /**
  * @swagger
@@ -53,8 +53,8 @@ router.get("/health", (_: Request, res: Response) => {
  *                   type: string
  *                   example: "English"
  */
-router.get("/current-language", (req: Request, res: Response) => {
-  res.json({ language: req.t("debug:currentLangue") });
-});
-
+// router.get("/current-language", (req: Request, res: Response) => {
+//   res.json({ language: req.t("debug:currentLangue") });
+// });
+router.use("/houses", houseRoutes);
 export { router as appRouter };
