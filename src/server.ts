@@ -8,7 +8,7 @@ import { setupSwagger } from "./utils/swagger";
 import { rateLimiter } from "./middlewares/rate-limiter.middleware";
 import { appRouter } from "./routes";
 import { connectDB } from "./config/db";
-
+import path = require("path");
 dotenv.config({ path: `.env.${process.env.NODE_ENV}` });
 const app = express();
 
@@ -20,12 +20,12 @@ app.use(rateLimiter());
 app.use(morganMiddleware);
 app.use(i18n);
 
+app.use('/uploads', express.static(path.join(__dirname, '../Uploads')));
 // Setup Swagger for API documentation
 setupSwagger(app);
 
 // Register routes
-app.use("/", appRouter);
-
+app.use("/api", appRouter);
 // Server configuration
 const PORT = process.env.PORT || 3000;
 
