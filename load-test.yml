@@ -1,0 +1,16 @@
+config:
+  target: "http://localhost:5001"  # Replace with your server URL
+  phases:
+    - duration: 60
+      arrivalRate: 200   # 200 users per second for 1 minute
+      name: "High Load Test"
+
+  # Define default headers here
+  headers:
+    Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZ2VuY3lJZCI6IjY4N2EyYWI0YWEzY2EzM2E1YmMyZGU2OCIsImlhdCI6MTc1MjgzOTA1NCwiZXhwIjoxNzUyOTI1NDU0fQ._4tn1GSgb-tanNk-fFhPLiv4AoET_staycC1Kn733nw"
+
+scenarios:
+  - name: "Authenticated GET /api/clients"
+    flow:
+      - get:
+          url: "/api/clients"
