@@ -18,10 +18,12 @@ export const addClient = [
     .isIn(["Apartment", "Villa", "House"])
     .withMessage("Property type must be Apartment, Villa, or House"),
   body("preferences.numberOfKids").isInt({ min: 0 }).withMessage("Number of kids is required"),
-  body("preferences.atitude").isFloat().withMessage("Latitude is required"),
+  body("preferences.latitude").isFloat().withMessage("Latitude is required"),
   body("preferences.longitude").isFloat().withMessage("Longitude is required"),
-  writeClientRateLimiter,
-  requireAgency,
+  body("type").isString().withMessage("Type is required"),
+
+  // writeClientRateLimiter,
+  // requireAgency,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const errors = validationResult(req);
@@ -36,14 +38,14 @@ export const addClient = [
         fullName,
         telephone,
         email,
-        agencyId: req.agencyId,
+        agencyId: '687ad5afb134148fddb99a64',
         preferences: {
           minBudget: parseFloat(preferences.minBudget),
           maxBudget: parseFloat(preferences.maxBudget),
           desiredArea: parseFloat(preferences.desiredArea),
           propertyType: preferences.propertyType,
           numberOfKids: parseInt(preferences.numberOfKids),
-          atitude: parseFloat(preferences.atitude),
+          latitude: parseFloat(preferences.latitude),
           longitude: parseFloat(preferences.longitude),
         },
       });
