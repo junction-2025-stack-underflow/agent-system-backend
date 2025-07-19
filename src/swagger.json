@@ -1,0 +1,673 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Houseek API",
+    "version": "1.0.0",
+    "description": "API for managing houses and client recommendations"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5001/api"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "ClientInput": {
+        "type": "object",
+        "required": [
+          "fullName",
+          "telephone",
+          "minBudget",
+          "maxBudget",
+          "desiredArea",
+          "propertyType",
+          "numberOfKids",
+          "atitude",
+          "longitude"
+        ],
+        "properties": {
+          "fullName": {
+            "type": "string"
+          },
+          "telephone": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "preferences": {
+            "type": "object",
+            "required": [
+              "minBudget",
+              "maxBudget",
+              "desiredArea",
+              "propertyType",
+              "numberOfKids",
+              "atitude",
+              "longitude"
+            ],
+            "properties": {
+              "minBudget": {
+                "type": "number"
+              },
+              "maxBudget": {
+                "type": "number"
+              },
+              "desiredArea": {
+                "type": "number"
+              },
+              "propertyType": {
+                "type": "string",
+                "enum": [
+                  "Apartment",
+                  "Villa",
+                  "House"
+                ]
+              },
+              "numberOfKids": {
+                "type": "number"
+              },
+              "atitude": {
+                "type": "number"
+              },
+              "longitude": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      },
+      "HouseInput": {
+        "type": "object",
+        "required": [
+          "price",
+          "area",
+          "propertyType",
+          "location",
+          "coordinates",
+          "status"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          },
+          "area": {
+            "type": "number"
+          },
+          "propertyType": {
+            "type": "string",
+            "enum": [
+              "Apartment",
+              "Villa",
+              "House"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "sold"
+            ]
+          },
+          "location": {
+            "type": "string"
+          },
+          "coordinates": {
+            "type": "object",
+            "required": [
+              "atitude",
+              "longitude"
+            ],
+            "properties": {
+              "atitude": {
+                "type": "number"
+              },
+              "longitude": {
+                "type": "number"
+              }
+            }
+          },
+          "features": {
+            "type": "object",
+            "properties": {
+              "bedrooms": {
+                "type": "number"
+              },
+              "bathrooms": {
+                "type": "number"
+              },
+              "garage": {
+                "type": "boolean"
+              },
+              "garden": {
+                "type": "boolean"
+              }
+            }
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      },
+      "AgencyInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "email",
+          "password"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "format": "password"
+          }
+        }
+      },
+      "AgencyLogin": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "format": "password"
+          }
+        }
+      },
+      "EmailConfirmation": {
+        "type": "object",
+        "required": [
+          "email",
+          "code"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "code": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/agencies": {
+      "post": {
+        "summary": "Register a new agency",
+        "tags": [
+          "Agency"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgencyInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Agency registered"
+          },
+          "400": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/agencies/login": {
+      "post": {
+        "summary": "Login an agency",
+        "tags": [
+          "Agency"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgencyLogin"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated successfully"
+          },
+          "401": {
+            "description": "Invalid credentials"
+          }
+        }
+      }
+    },
+    "/agencies/confirm-email": {
+      "post": {
+        "summary": "Confirm agency email using code",
+        "tags": [
+          "Agency"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailConfirmation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email confirmed"
+          },
+          "400": {
+            "description": "Invalid confirmation data"
+          }
+        }
+      }
+    },
+    "/clients": {
+      "post": {
+        "summary": "Add a new client",
+        "tags": [
+          "Clients"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Client created successfully"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/clients/{id}": {
+      "delete": {
+        "summary": "Delete a client by ID",
+        "tags": [
+          "Clients"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Client deleted"
+          },
+          "404": {
+            "description": "Client not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/clients/myclients": {
+      "get": {
+        "summary": "Get all clients for the agency",
+        "tags": [
+          "Clients"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of clients"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/clients/myclient/{id}": {
+      "get": {
+        "summary": "Get a single client by ID",
+        "tags": [
+          "Clients"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Client found"
+          },
+          "404": {
+            "description": "Client not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/houses": {
+      "post": {
+        "summary": "Add a new house",
+        "tags": [
+          "Houses"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "images": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  },
+                  "titre": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "region": {
+                    "type": "string"
+                  },
+                  "nombreLits": {
+                    "type": "integer"
+                  },
+                  "nombreSallesDeBain": {
+                    "type": "integer"
+                  },
+                  "nombreCuisine": {
+                    "type": "integer"
+                  },
+                  "wifi": {
+                    "type": "boolean"
+                  },
+                  "television": {
+                    "type": "boolean"
+                  },
+                  "laveLinge": {
+                    "type": "boolean"
+                  },
+                  "parking": {
+                    "type": "boolean"
+                  },
+                  "climatisation": {
+                    "type": "boolean"
+                  },
+                  "chauffage": {
+                    "type": "boolean"
+                  },
+                  "details": {
+                    "type": "string",
+                    "description": "JSON string with PropertyType, Latitude, Longitude, Area, Rooms, Price"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "House created"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/houses/{id}": {
+      "delete": {
+        "summary": "Delete a house by ID",
+        "tags": [
+          "Houses"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the house",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "House deleted successfully"
+          },
+          "403": {
+            "description": "Unauthorized access"
+          },
+          "404": {
+            "description": "House not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/houses/myhouses": {
+      "get": {
+        "summary": "Get houses belonging to the authenticated agency",
+        "tags": [
+          "Houses"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of houses"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/houses/myhouse/{id}": {
+      "get": {
+        "summary": "Get a single house by its internal ID",
+        "tags": [
+          "Houses"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the house (details.ID field)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "House details"
+          },
+          "403": {
+            "description": "Unauthorized access"
+          },
+          "404": {
+            "description": "House not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/houses/{id}/recommendations": {
+      "get": {
+        "summary": "Recommend clients for a house",
+        "tags": [
+          "Houses"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the house",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of recommended clients"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Agency",
+      "description": "Endpoints for agency registration and authentication"
+    },
+    {
+      "name": "Clients",
+      "description": "Client management for agencies"
+    },
+    {
+      "name": "Houses",
+      "description": "House management for agencies"
+    }
+  ]
+}

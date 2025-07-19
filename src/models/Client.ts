@@ -38,6 +38,7 @@ const clientSchema = new mongoose.Schema(
       atitude: { type: Number, required: true },
       longitude: { type: Number, required: true },
     },
+    
   },
   {
     timestamps: true,

@@ -80,14 +80,11 @@ export const addAgency = [
     }
   },
 ];
-
 export const loginAgency = [
     body("password").isString().notEmpty().withMessage("Password is required"),
     body("email").optional().isEmail().withMessage("Invalid email format"),
     body("phone").optional().isString().notEmpty().withMessage("Phone must be provided"),
-  
     readClientRateLimiter,
-  
     async (req: Request, res: Response): Promise<void> => {
       try {
         const errors = validationResult(req);
@@ -97,35 +94,34 @@ export const loginAgency = [
         }
   
         const { email, phone, password } = req.body;
+        console.log("Request body:", req.body); 
   
         if (!email && !phone) {
           res.status(400).json({
             success: false,
-            errors: [
-              {
-                msg: "Either email or phone is required",
-                path: "emailOrPhone",
-              },
-            ],
+            errors: [{ msg: "Either email or phone is required", path: "emailOrPhone" }],
           });
           return;
         }
+        const query = email ? { email } : { phone };
+        const agency = await Agency.findOne(query).select("+password name email phone address");
   
-        const cacheKey = `agency:${email || phone}`;
-        const { data: agency, cached } = await cacheOrQuery(
-          cacheKey,
-          async () => {
-            const query = email ? { email } : { phone };
-            const agency = await Agency.findOne(query)
-              .select("name email password phone address")
-              .lean();
+        console.log("Agency from DB:", agency);
   
-            if (!agency) throw new Error("Invalid credentials");
+        if (!agency) {
+          res.status(401).json({ success: false, message: "Invalid credentials" });
+          return;
+        }
   
-            return agency;
-          },
-          CACHE_TTL
-        );
+        if (!password || !agency.password) {
+          logError("Missing password data", {
+            email: email || phone,
+            hasPasswordInRequest: !!password,
+            hasPasswordInDB: !!agency.password,
+          });
+          res.status(400).json({ success: false, message: "Invalid password data" });
+          return;
+        }
   
         const isMatch = await bcrypt.compare(password, agency.password);
         if (!isMatch) {
@@ -133,38 +129,28 @@ export const loginAgency = [
           return;
         }
   
-        const { password: _, ...safeAgency } = agency;
-        if (!cached) {
-          await redisClient.setEx(cacheKey, CACHE_TTL, JSON.stringify(safeAgency));
-        }
+        // Cache non-sensitive agency data
+        const cacheKey = `agency:${email || phone}`;
+        const { password: _, ...safeAgency } = agency.toObject();
+        await redisClient.setEx(cacheKey, CACHE_TTL, JSON.stringify(safeAgency));
   
-        const token = jwt.sign({ agencyId: agency._id }, JWT_SECRET, {
-          expiresIn: "1d",
-        });
+        const token = jwt.sign({ agencyId: agency._id }, JWT_SECRET, { expiresIn: "1d" });
   
         res.status(200).json({
           success: true,
-          data: {
-            token,
-            agencyId: agency._id,
-            name: agency.name,
-            email: agency.email,
-          },
+          data: { token, agencyId: agency._id, name: agency.name, email: agency.email },
           message: "Login successful",
         });
       } catch (error: any) {
-        logError("Login error", { error, email: req.body.email });
-  
-        if (error.message === "Invalid credentials") {
-          res.status(401).json({ success: false, message: error.message });
-          return;
-        }
-  
+        logError("Login error", {
+          message: error.message,
+          stack: error.stack,
+          email: req.body.email || req.body.phone,
+        });
         res.status(500).json({ success: false, message: "Server error during login" });
       }
     },
   ];
-  
 export const confirmAgencyEmail = async (req: Request, res: Response) => {
     try {
       const { token } = req.query;
