@@ -9,6 +9,11 @@ const clientSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    type: {
+      type: String,
+      enum: ["buy", "rent"],
+      // required: true,
+    },
     telephone: {
       type: String,
       required: true,
@@ -35,7 +40,7 @@ const clientSchema = new mongoose.Schema(
         required: true,
       },
       numberOfKids: { type: Number, required: true },
-      atitude: { type: Number, required: true },
+      latitude: { type: Number, required: true },
       longitude: { type: Number, required: true },
     },
     

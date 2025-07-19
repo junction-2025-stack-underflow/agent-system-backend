@@ -104,4 +104,5 @@ router.get("/myclients", authenticateAgency, getAllClients);
  */
 router.get("/myclient/:id", authenticateAgency, getClientById);
 
+
 export default router;
