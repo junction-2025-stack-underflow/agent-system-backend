@@ -14,3 +14,12 @@ export const recommendClientsForHouse = async (req: AuthRequest, res: Response) 
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const recommendClientsForAllHouses = async (req: AuthRequest, res: Response) => {
+  try {
+    const response = await axios.get(`${process.env.AI_SERVICE}/match_all`)
+    res.status(200).json({ success: true, data: response.data });
+  } catch (error:any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
