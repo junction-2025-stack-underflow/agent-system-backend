@@ -10,10 +10,11 @@ const logger = winston.createLogger({
   format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
   transports: [new winston.transports.File({ filename: "error.log" })],
 });
-const JWT_SECRET: string = process.env.JWT_SECRET || (() => {
-  logger.error("JWT_SECRET is not defined");
-  throw new Error("JWT_SECRET is not defined");
-})();
+const JWT_SECRET = process.env.JWT_SECRET || (() => {
+    logger.error("JWT_SECRET is not defined");
+    throw new Error("JWT_SECRET is not defined");
+  })();
+  
 const authRateLimiter = rateLimit({
   store: new RedisStore({
     sendCommand: async (...args: string[]) => redisClient.sendCommand(args),
