@@ -32,12 +32,13 @@ export const addClient = [
         return;
       }
 
-      const { fullName, telephone, email, preferences } = req.body;
+      const { fullName, telephone, email, preferences, type } = req.body;
 
       const newClient = new Client({
         fullName,
         telephone,
         email,
+        type,
         agencyId: '687ad5afb134148fddb99a64',
         preferences: {
           minBudget: parseFloat(preferences.minBudget),
