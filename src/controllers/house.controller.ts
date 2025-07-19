@@ -130,7 +130,7 @@ export const addHouse = [
         region,
       });
       await newHouse.save();
-      const cacheKeyList = `houses:${newHouse.agencyId}`;
+      const cacheKeyList = `houses:${newHouse.agencyId.toString()}`;
       const cachedHouses = await redisClient.get(cacheKeyList);
       if (cachedHouses) {
         const houses = JSON.parse(cachedHouses);
@@ -143,8 +143,10 @@ export const addHouse = [
       } else {
         await redisClient.del(cacheKeyList);
       }
-
-      const cacheKeyHouse = `house:${newHouse.agencyId}:${newHouse.details.ID}`;
+      console.log('AGENCY KEY ID', newHouse.agencyId.toString());
+      const cacheKeyHouse = `house:${newHouse.agencyId.toString()}:${
+        newHouse.details.ID
+      }`;
       await redisClient.setEx(
         cacheKeyHouse,
         CACHE_TTL,
@@ -287,7 +289,7 @@ export const getHouseById = [
     try {
       const { id: houseId } = req.params;
 
-      const cacheKey = `house:${req.agencyId}:${houseId}`;
+      const cacheKey = `house:${req.query.agencyId}:${houseId}`;
       const { data: house, cached } = await cacheOrQuery(
         cacheKey,
         async () => {
@@ -301,9 +303,9 @@ export const getHouseById = [
           if (!house) {
             throw new Error('House not found');
           }
-          if (house.agencyId.toString() !== req.agencyId) {
-            throw new Error(' unauthorized access to this house');
-          }
+          // if (house.agencyId.toString() !== req.agencyId) {
+          //   throw new Error(' unauthorized access to this house');
+          // }
           return house;
         },
         CACHE_TTL
