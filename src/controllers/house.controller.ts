@@ -43,6 +43,8 @@ export const addHouse = [
         region,
         agencyId,
       } = req.body;
+      console.log('agency id', agencyId);
+      console.log('body', req.body);
       const parsedDetails =
         typeof details === 'string' ? JSON.parse(details) : details;
       const customErrors: any[] = [];
@@ -78,18 +80,20 @@ export const addHouse = [
       if (isNaN(parseFloat(parsedDetails.Price)) || parsedDetails.Price < 0) {
         customErrors.push({ msg: 'Invalid price', path: 'details.Price' });
       }
+      console.log('req.files:', req.files);
       if (!validationErrors.isEmpty() || customErrors.length > 0) {
         if (req.files) {
           const files = req.files as Express.Multer.File[];
           await Promise.all(
-            files.map((file) =>
+            files.map((file) => {
+              console.log('File MIME type:', file.mimetype);
               fs.unlink(file.path).catch((err) =>
                 logError('Failed to delete file', {
                   error: err,
                   path: file.path,
                 })
-              )
-            )
+              );
+            })
           );
         }
         return res.status(400).json({
@@ -126,7 +130,7 @@ export const addHouse = [
         region,
       });
       await newHouse.save();
-      const cacheKeyList = `houses:${agencyId}`;
+      const cacheKeyList = `houses:${newHouse.agencyId}`;
       const cachedHouses = await redisClient.get(cacheKeyList);
       if (cachedHouses) {
         const houses = JSON.parse(cachedHouses);
@@ -140,7 +144,7 @@ export const addHouse = [
         await redisClient.del(cacheKeyList);
       }
 
-      const cacheKeyHouse = `house:${agencyId}:${newHouse.details.ID}`;
+      const cacheKeyHouse = `house:${newHouse.agencyId}:${newHouse.details.ID}`;
       await redisClient.setEx(
         cacheKeyHouse,
         CACHE_TTL,
@@ -279,7 +283,6 @@ export const getHousesByAgency = [
 
 export const getHouseById = [
   houseRateLimiter,
-  requireAgency,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { id: houseId } = req.params;
@@ -313,6 +316,7 @@ export const getHouseById = [
         agencyId: req.agencyId,
         houseId: req.params.id,
       });
+      console.log(error);
       if (error.message === 'House not found') {
         res.status(404).json({ success: false, message: error.message });
         return;
