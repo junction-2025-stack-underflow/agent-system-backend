@@ -7,7 +7,10 @@ import {
 } from '../controllers/house.controller';
 import { upload } from '../middlewares/image.upload';
 import { authenticateAgency } from '../middlewares/auth.middleware';
-import { recommendClientsForAllHouses, recommendClientsForHouse } from '../controllers/recommendation.controller';
+import {
+  recommendClientsForAllHouses,
+  recommendClientsForHouse,
+} from '../controllers/recommendation.controller';
 import multer from 'multer';
 const router = express.Router();
 router.post(
@@ -30,9 +33,9 @@ router.post(
   addHouse
 );
 router.delete('/:id', deleteHouse);
-router.get('/myhouses', getHousesByAgency);
+router.get('/myhouses/:id', getHousesByAgency);
 router.get('/myhouse/:id', getHouseById);
-router.get("/recommendations", recommendClientsForAllHouses)
+router.get('/recommendations', recommendClientsForAllHouses);
 router.get('/:id/recommendations', recommendClientsForHouse);
 
 export default router;

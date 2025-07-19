@@ -249,18 +249,17 @@ export const deleteHouse = [
 
 export const getHousesByAgency = [
   houseRateLimiter,
-  requireAgency,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { page = '1', limit = '10' } = req.query;
       const pageNum = parseInt(page as string, 10);
       const limitNum = parseInt(limit as string, 10);
 
-      const cacheKey = `houses:${req.agencyId}:${pageNum}:${limitNum}`;
+      const cacheKey = `houses:${req.params.id}:${pageNum}:${limitNum}`;
       const { data: houses, cached } = await cacheOrQuery(
         cacheKey,
         () =>
-          House.find({ agencyId: req.agencyId })
+          House.find({ agencyId: req.params.id })
             .select(
               'details.ID details.PropertyType details.Price details.Area details.Rooms details.Latitude details.Longitude titre description images'
             )
@@ -274,7 +273,7 @@ export const getHousesByAgency = [
     } catch (error: any) {
       logError('Error fetching houses by agency', {
         error,
-        agencyId: req.agencyId,
+        agencyId: req.params.id,
       });
       res
         .status(500)
